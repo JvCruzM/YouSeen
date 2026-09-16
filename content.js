@@ -1,33 +1,26 @@
-// YouSeen - content.js
-// Roda em qualquer página do youtube.com (Home, Assinaturas, canal, busca, playlists...)
-// e oculta os "cards" de vídeo cujo progresso de reprodução (dado que o próprio YouTube
-// já guarda e mostra como uma barrinha vermelha no thumbnail) indica que já foram
-// assistidos até o fim.
-
 (() => {
-  'use strict';
+  "use strict";
 
   const DEFAULTS = { youseenEnabled: true, youseenThreshold: 95 };
-  const HIDDEN_CLASS = 'youseen-hidden-video';
-  const STYLE_TAG_ID = 'youseen-style-tag';
-  const PROCESSED_ATTR = 'data-youseen-percent';
+  const HIDDEN_CLASS = "youseen-hidden-video";
+  const STYLE_TAG_ID = "youseen-style-tag";
+  const PROCESSED_ATTR = "data-youseen-percent";
 
-  // Tipos de "card" de vídeo que o YouTube usa em diferentes páginas
   const RENDERER_SELECTORS = [
-    'ytd-rich-item-renderer',        // Home, canal (grade)
-    'ytd-grid-video-renderer',       // grades antigas / algumas playlists
-    'ytd-video-renderer',            // resultados de busca, listas verticais
-    'ytd-compact-video-renderer',    // barra lateral "próximos vídeos"
-    'ytd-playlist-video-renderer',   // dentro de uma playlist
-    'ytd-reel-item-renderer',        // Shorts em grade
-  ].join(',');
+    "ytd-rich-item-renderer",
+    "ytd-grid-video-renderer",
+    "ytd-video-renderer",
+    "ytd-compact-video-renderer",
+    "ytd-playlist-video-renderer",
+    "ytd-reel-item-renderer",
+  ].join(",");
 
   let state = { ...DEFAULTS };
 
   function ensureStyleTag() {
     let tag = document.getElementById(STYLE_TAG_ID);
     if (!tag) {
-      tag = document.createElement('style');
+      tag = document.createElement("style");
       tag.id = STYLE_TAG_ID;
       document.documentElement.appendChild(tag);
     }
@@ -38,25 +31,40 @@
     const tag = ensureStyleTag();
     tag.textContent = state.youseenEnabled
       ? `.${HIDDEN_CLASS} { display: none !important; }`
-      : '';
+      : "";
   }
 
-  // Lê a % de progresso que o próprio YouTube desenha no thumbnail.
-  // Estrutura real: <div id="progress" class="style-scope ytd-thumbnail-overlay-resume-playback-renderer" style="width: 87%;">
   function getWatchedPercent(renderer) {
-    const progressEl = renderer.querySelector(
-      '#progress.ytd-thumbnail-overlay-resume-playback-renderer'
+    const newProgressEl = renderer.querySelector(
+      "yt-thumbnail-overlay-progress-bar-view-model " +
+        ".ytThumbnailOverlayProgressBarHostWatchedProgressBarSegment",
     );
-    if (!progressEl || !progressEl.style.width) return null;
-    const percent = parseFloat(progressEl.style.width);
-    return Number.isNaN(percent) ? null : percent;
+
+    if (newProgressEl?.style.width) {
+      const percent = parseFloat(newProgressEl.style.width);
+      if (!Number.isNaN(percent)) {
+        return percent;
+      }
+    }
+
+    const oldProgressEl = renderer.querySelector(
+      "#progress.ytd-thumbnail-overlay-resume-playback-renderer",
+    );
+
+    if (oldProgressEl?.style.width) {
+      const percent = parseFloat(oldProgressEl.style.width);
+      if (!Number.isNaN(percent)) {
+        return percent;
+      }
+    }
+
+    return null;
   }
 
   function processRenderer(renderer) {
     const percent = getWatchedPercent(renderer);
 
     if (percent === null) {
-      // Vídeo sem progresso registrado (nunca assistido) -> nunca ocultar
       renderer.classList.remove(HIDDEN_CLASS);
       renderer.removeAttribute(PROCESSED_ATTR);
       return;
@@ -67,7 +75,16 @@
   }
 
   function scan(root) {
-    (root || document).querySelectorAll(RENDERER_SELECTORS).forEach(processRenderer);
+    const target = root || document;
+
+    if (
+      target.nodeType === Node.ELEMENT_NODE &&
+      target.matches?.(RENDERER_SELECTORS)
+    ) {
+      processRenderer(target);
+    }
+
+    target.querySelectorAll(RENDERER_SELECTORS).forEach(processRenderer);
   }
 
   function countStats() {
@@ -78,8 +95,6 @@
     });
     return { total: all.length, hidden };
   }
-
-  // --- Observa a página, que é uma SPA (não recarrega ao navegar) ---
 
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
@@ -99,16 +114,12 @@
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  // O YouTube dispara este evento customizado ao trocar de página via SPA
-  document.addEventListener('yt-navigate-finish', () => {
-    // pequeno atraso para o novo conteúdo já estar no DOM
+  document.addEventListener("yt-navigate-finish", () => {
     setTimeout(() => scan(), 300);
   });
 
-  // --- Sincroniza com as opções escolhidas no popup ---
-
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'sync') return;
+    if (area !== "sync") return;
     let needsRescan = false;
 
     if (changes.youseenEnabled) {
@@ -122,16 +133,12 @@
     if (needsRescan) scan();
   });
 
-  // --- Responde ao popup quando ele pede estatísticas da página atual ---
-
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message && message.type === 'YOUSEEN_GET_STATS') {
+    if (message && message.type === "YOUSEEN_GET_STATS") {
       sendResponse(countStats());
     }
     return true;
   });
-
-  // --- Inicialização ---
 
   chrome.storage.sync.get(DEFAULTS, (items) => {
     state = items;

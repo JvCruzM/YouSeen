@@ -1,4 +1,3 @@
-// YouSeen - popup.js
 const DEFAULTS = { youseenEnabled: true, youseenThreshold: 95 };
 
 const enabledToggle = document.getElementById('enabledToggle');
