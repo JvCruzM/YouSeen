@@ -1,24 +1,49 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
   <title>YouSeen</title>
-  <link rel="stylesheet" href="popup.css">
+  <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <main>
+  <header class="header">
+    <span class="logo">👁️</span>
     <h1>YouSeen</h1>
+  </header>
 
-    <p>
-      Vídeos concluídos:
-      <strong id="watched-count">0</strong>
-    </p>
+  <main>
+    <section class="row">
+      <label class="switch">
+        <input type="checkbox" id="enabledToggle" />
+        <span class="slider"></span>
+      </label>
+      <div class="row-text">
+        <strong>Ocultar vídeos assistidos</strong>
+        <span class="hint">Some com o que você já viu até o fim</span>
+      </div>
+    </section>
 
-    <button id="clear-history">
-      Limpar histórico
-    </button>
+    <section class="row">
+      <label for="thresholdSelect" class="row-text">
+        <strong>Considerar "assistido" a partir de</strong>
+        <span class="hint">Baseado no progresso salvo pelo YouTube</span>
+      </label>
+      <select id="thresholdSelect">
+        <option value="100">100% do vídeo</option>
+        <option value="95">95% do vídeo</option>
+        <option value="90">90% do vídeo</option>
+        <option value="80">80% do vídeo</option>
+      </select>
+    </section>
+
+    <section id="statsSection" class="stats">
+      <span id="statsText">Abra uma página do YouTube para ver as estatísticas.</span>
+    </section>
   </main>
+
+  <footer>
+    <span>YouSeen · feito para o Vivaldi</span>
+  </footer>
 
   <script src="popup.js"></script>
 </body>
