@@ -96,26 +96,57 @@
     return { total: all.length, hidden };
   }
 
+  let scanTimer = null;
+  let lateScanTimer = null;
+
+  function scheduleScan(delay = 200) {
+    clearTimeout(scanTimer);
+
+    scanTimer = setTimeout(() => {
+      scan();
+      scanTimer = null;
+    }, delay);
+
+    if (lateScanTimer === null) {
+      lateScanTimer = setTimeout(() => {
+        scan();
+        lateScanTimer = null;
+      }, 1000);
+    }
+  }
+
   const observer = new MutationObserver((mutations) => {
+    let hasRelevantChanges = false;
+
     for (const mutation of mutations) {
-      mutation.addedNodes.forEach((node) => {
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-        if (node.matches && node.matches(RENDERER_SELECTORS)) {
-          processRenderer(node);
-        }
-        if (node.querySelectorAll) {
-          node.querySelectorAll(RENDERER_SELECTORS).forEach(processRenderer);
-        }
-      });
+      if (mutation.addedNodes.length > 0) {
+        hasRelevantChanges = true;
+        break;
+      }
+    }
+
+    if (hasRelevantChanges) {
+      scheduleScan();
     }
   });
 
   function startObserving() {
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
   }
 
   document.addEventListener("yt-navigate-finish", () => {
-    setTimeout(() => scan(), 300);
+    scheduleScan(300);
+  });
+
+  document.addEventListener("yt-page-data-updated", () => {
+    scheduleScan(300);
+  });
+
+  window.addEventListener("popstate", () => {
+    scheduleScan(300);
   });
 
   chrome.storage.onChanged.addListener((changes, area) => {
